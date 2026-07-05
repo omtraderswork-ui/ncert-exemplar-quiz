@@ -4,9 +4,7 @@ import re
 
 st.title("📘 NCERT Exemplar Quiz Generator")
 
-st.write("Upload your Exemplar PDF to start the exam.")
-
-pdf_file = st.file_uploader("Upload PDF", type="pdf")
+pdf_file = st.file_uploader("Upload NCERT Exemplar PDF", type="pdf")
 if pdf_file:
     text = ""
     with pdfplumber.open(pdf_file) as pdf:
@@ -17,27 +15,27 @@ if pdf_file:
 
     st.success("✅ PDF uploaded successfully!")
 
-    # Extract questions blocks (Q1., Q2., etc.)
+    # Extract question blocks: look for "Q1.", "Q2." etc.
     raw_questions = re.findall(r'Q\d+\..*?(?=Q\d+\.|$)', text, re.S)
 
     questions = []
     for q in raw_questions:
         q = q.strip()
-        # Extract question text (before options)
+        # Question text = first line before options
         q_lines = q.split("\n")
         question_text = q_lines[0]
 
-        # Extract options (a), (b), (c), (d)
+        # Options: look for (a), (b), (c), (d)
         options = re.findall(r'\([a-d]\)\s.*', q)
         if len(options) == 4:
             questions.append({
                 "q": question_text,
                 "options": options,
-                "answer": 0  # placeholder, correct answer mapping later
+                "answer": 0  # placeholder
             })
 
     if not questions:
-        st.warning("⚠️ No questions found. PDF format may differ.")
+        st.warning("⚠️ No questions found. Try checking PDF formatting.")
     else:
         score = 0
         for idx, q in enumerate(questions[:5]):  # show first 5 questions
@@ -52,4 +50,3 @@ if pdf_file:
 
         st.write("📊 Exam Finished!")
         st.write(f"Score: {score}/{len(questions[:5])}")
-        st.write("🏆 Rank analysis: Demo Top 20%")
