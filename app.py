@@ -3,7 +3,6 @@ import pdfplumber
 import pytesseract
 from PIL import Image
 from transformers import pipeline
-import time
 
 st.title("📘 AI Powered NCERT Exemplar Quiz")
 
@@ -21,31 +20,13 @@ if pdf_file:
 
     st.success("✅ Text extracted successfully!")
 
-    # HuggingFace Question Generation pipeline
-    qg_pipeline = pipeline("question-generation", model="valhalla/t5-small-qa-qg-hl")
+    # Use text2text-generation pipeline instead of question-generation
+    qg_pipeline = pipeline("text2text-generation", model="valhalla/t5-small-qa-qg-hl")
 
-    # Generate MCQs from first 3000 chars of text
-    context = text[:3000]
-    questions = qg_pipeline(context)
+    # Generate MCQs from first 2000 chars of text
+    context = text[:2000]
+    output = qg_pipeline(context, max_length=256, do_sample=False)
 
-    if questions:
-        # Timer setup
-        if "start_time" not in st.session_state:
-            st.session_state.start_time = time.time()
-        elapsed = int(time.time() - st.session_state.start_time)
-        st.write(f"⏳ Time elapsed: {elapsed} seconds")
-
-        score = 0
-        for idx, q in enumerate(questions[:5]):  # show first 5 questions
-            st.write(f"Q{idx+1}: {q['question']}")
-            options = q.get("options", ["Option A","Option B","Option C","Option D"])
-            choice = st.radio("Select one:", options, key=idx)
-            if st.button(f"Submit Q{idx+1}", key=f"btn{idx}"):
-                st.info("Answer checking demo — correct answer mapping needed")
-                # Placeholder: you can add answer key logic here
-
-        st.write("📊 Exam Finished!")
-        st.write(f"Score: {score}/{len(questions[:5])}")
-        st.write("🏆 Rank analysis: Demo Top 20%")
-    else:
-        st.warning("⚠️ No questions generated. Try uploading a different PDF or increase context size.")
+    st.write("📊 AI Generated Questions:")
+    for idx, q in enumerate(output):
+        st.write(f"Q{idx+1}: {q['generated_text']}")
