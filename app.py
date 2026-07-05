@@ -3,8 +3,9 @@ import pdfplumber
 import pytesseract
 from PIL import Image
 from transformers import pipeline
+import time
 
-st.title("📘 AI Powered NCERT Quiz")
+st.title("📘 AI Powered NCERT Exemplar Quiz")
 
 pdf_file = st.file_uploader("Upload PDF", type="pdf")
 if pdf_file:
@@ -20,14 +21,31 @@ if pdf_file:
 
     st.success("✅ Text extracted successfully!")
 
-    # HuggingFace NLP model for question generation
-    qa_pipeline = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
+    # HuggingFace Question Generation pipeline
+    qg_pipeline = pipeline("question-generation", model="valhalla/t5-small-qa-qg-hl")
 
-    # Example: generate one demo question from extracted text
-    context = text[:1000]  # take first 1000 chars
-    question = "What is the main concept explained?"
-    result = qa_pipeline(question=question, context=context)
+    # Generate MCQs from first 3000 chars of text
+    context = text[:3000]
+    questions = qg_pipeline(context)
 
-    st.write("Sample AI Generated Question:")
-    st.write(question)
-    st.write("Answer:", result['answer'])
+    if questions:
+        # Timer setup
+        if "start_time" not in st.session_state:
+            st.session_state.start_time = time.time()
+        elapsed = int(time.time() - st.session_state.start_time)
+        st.write(f"⏳ Time elapsed: {elapsed} seconds")
+
+        score = 0
+        for idx, q in enumerate(questions[:5]):  # show first 5 questions
+            st.write(f"Q{idx+1}: {q['question']}")
+            options = q.get("options", ["Option A","Option B","Option C","Option D"])
+            choice = st.radio("Select one:", options, key=idx)
+            if st.button(f"Submit Q{idx+1}", key=f"btn{idx}"):
+                st.info("Answer checking demo — correct answer mapping needed")
+                # Placeholder: you can add answer key logic here
+
+        st.write("📊 Exam Finished!")
+        st.write(f"Score: {score}/{len(questions[:5])}")
+        st.write("🏆 Rank analysis: Demo Top 20%")
+    else:
+        st.warning("⚠️ No questions generated. Try uploading a different PDF or increase context size.")
