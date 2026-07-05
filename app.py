@@ -1,5 +1,5 @@
 import streamlit as st
-from PyPDF2 import PdfReader
+import pdfplumber
 import re
 
 st.title("📘 NCERT Exemplar Quiz Generator")
@@ -8,50 +8,48 @@ st.write("Upload your Exemplar PDF to start the exam.")
 
 pdf_file = st.file_uploader("Upload PDF", type="pdf")
 if pdf_file:
-    reader = PdfReader(pdf_file)
     text = ""
-    for page in reader.pages:
-        text += page.extract_text()
+    with pdfplumber.open(pdf_file) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
 
     st.success("✅ PDF uploaded successfully!")
 
-    # Simple regex to split questions (assuming "Q." or "Question" marks start)
-    raw_questions = re.split(r'Q[0-9]+\.|Question', text)
+    # Extract questions blocks (Q1., Q2., etc.)
+    raw_questions = re.findall(r'Q\d+\..*?(?=Q\d+\.|$)', text, re.S)
 
     questions = []
     for q in raw_questions:
         q = q.strip()
-        if len(q) > 20:  # filter out small junk
-            # For demo, just take first sentence as question
-            parts = q.split("\n")
-            question_text = parts[0]
-            options = parts[1:5]  # assume next 4 lines are options
-            if len(options) == 4:
-                questions.append({
-                    "q": question_text,
-                    "options": options,
-                    "answer": 0  # placeholder, you can mark correct later
-                })
+        # Extract question text (before options)
+        q_lines = q.split("\n")
+        question_text = q_lines[0]
 
-    # Timer (simple countdown)
-    if "time_left" not in st.session_state:
-        st.session_state.time_left = 60
+        # Extract options (a), (b), (c), (d)
+        options = re.findall(r'\([a-d]\)\s.*', q)
+        if len(options) == 4:
+            questions.append({
+                "q": question_text,
+                "options": options,
+                "answer": 0  # placeholder, correct answer mapping later
+            })
 
-    st.write(f"⏳ Time left: {st.session_state.time_left} seconds")
-
-    # Show questions
-    score = 0
-    for idx, q in enumerate(questions[:5]):  # show first 5 questions
-        st.write(f"Q{idx+1}: {q['q']}")
-        for i, opt in enumerate(q["options"]):
-            if st.button(opt, key=f"{idx}-{i}"):
-                if i == q["answer"]:
+    if not questions:
+        st.warning("⚠️ No questions found. PDF format may differ.")
+    else:
+        score = 0
+        for idx, q in enumerate(questions[:5]):  # show first 5 questions
+            st.write(f"Q{idx+1}: {q['q']}")
+            choice = st.radio("Select one:", q["options"], key=idx)
+            if st.button(f"Submit Q{idx+1}", key=f"btn{idx}"):
+                if q["options"].index(choice) == q["answer"]:
                     st.success("Correct!")
                     score += 1
                 else:
                     st.error("Wrong!")
 
-    # End analysis
-    st.write("📊 Exam Finished!")
-    st.write(f"Score: {score}/{len(questions[:5])}")
-    st.write("🏆 Rank analysis: (demo) Top 20%")
+        st.write("📊 Exam Finished!")
+        st.write(f"Score: {score}/{len(questions[:5])}")
+        st.write("🏆 Rank analysis: Demo Top 20%")
